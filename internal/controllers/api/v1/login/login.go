@@ -10,9 +10,11 @@ import (
 	"gohub/internal/errmsg"
 	"gohub/internal/model"
 	"gohub/internal/model/request"
+	"gohub/internal/pkg"
 	"gohub/internal/repository"
 	"gohub/internal/response"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 func UsingPhone(c *gin.Context) {
@@ -40,7 +42,7 @@ func UsingPhone(c *gin.Context) {
 		return
 	}
 	// 2.3 将验证码缓存设置为过期
-	cusRedis.Rdb.Set(param.Phone, correctCode, -1)
+	cusRedis.Rdb.Set(param.Phone, correctCode, 1*time.Millisecond)
 	// 3. 判断用户是否存在
 	_, userExist, err := repository.UserExist(param.Phone, 1)
 	if err != nil {
@@ -64,11 +66,16 @@ func UsingPassword(c *gin.Context) {
 	// 2. 判断用户是否存在
 	var user *model.User
 	userExist := false
-	for i := 1; i <= 3 && !userExist; i++ {
-		phoneExist := false
+	isEmail := pkg.VerifyEmailFormat(param.PhoneOrEmailOrName)
+	start, step := 1, 2
+	if isEmail {
+		start, step = 2, 1
+	}
+	for ; start <= 3 && !userExist; start += step {
+		exist := false
 		var err error
-		user, phoneExist, err = repository.UserExist(param.PhoneOrEmailOrName, i)
-		userExist = userExist || phoneExist
+		user, exist, err = repository.UserExist(param.PhoneOrEmailOrName, start)
+		userExist = userExist || exist
 		if err != nil {
 			response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
 			return
@@ -77,7 +84,8 @@ func UsingPassword(c *gin.Context) {
 	// 3. 判断密码是否正确
 	if userExist {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(param.Password)); err != nil {
-			fmt.Printf("err:%v\n", err)
+			fmt.Println(user.Password)
+			cusZap.Error("密码比对错误", zap.String("err", err.Error()))
 			response.Response(c, 200, errmsg.PwdWrongMsg, "status", "failed")
 			return
 		}
@@ -88,6 +96,14 @@ func UsingPassword(c *gin.Context) {
 }
 
 func PwdResetUsingPhone(c *gin.Context) {
+	pwdReset(c, 1)
+}
+
+func PwdResetUsingEmail(c *gin.Context) {
+	pwdReset(c, 2)
+}
+
+func pwdReset(c *gin.Context, phoneOrEmail int) {
 	// 1. 参数绑定
 	var param request.PwdReset
 	if err := c.ShouldBindJSON(&param); err != nil {
@@ -96,7 +112,7 @@ func PwdResetUsingPhone(c *gin.Context) {
 	}
 	// 2. 判断用户是否存在
 	var user *model.User
-	user, userExist, err := repository.UserExist(param.PhoneOrEmail, 1)
+	user, userExist, err := repository.UserExist(param.PhoneOrEmail, phoneOrEmail)
 	if err != nil {
 		response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
 		return
@@ -119,14 +135,20 @@ func PwdResetUsingPhone(c *gin.Context) {
 		return
 	}
 	// 3.3 将验证码缓存设置为过期
-	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, -1)
-	// 4. 更新用户
-	user.Password = param.NewPassword
-	if userExist {
-		repository.UpdateAUser(user)
+	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, 1*time.Millisecond)
+	// 4. 用户密码加密
+	bcryptedPwd, err := bcrypt.GenerateFromPassword([]byte(param.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return
 	}
-}
-
-func PwdResetUsingEmail(c *gin.Context) {
-
+	//
+	user.Password = string(bcryptedPwd)
+	if userExist {
+		err := repository.UpdateAUser(user)
+		if err != nil {
+			response.Response(c, 500, "", "code", errmsg.MySQLUpdateFailed)
+			return
+		}
+	}
+	response.Response(c, 200, "更新成功", "status", "success")
 }

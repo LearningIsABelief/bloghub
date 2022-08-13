@@ -1,7 +1,6 @@
 package register
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
@@ -14,6 +13,7 @@ import (
 	"gohub/internal/repository"
 	"gohub/internal/response"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 // UsingPhone 使用手机号注册
@@ -38,10 +38,6 @@ func register(c *gin.Context, phoneOrEmail int) {
 		response.Response(c, 403, errmsg.EmailFormatWrongMsg)
 		return
 	}
-	if param.Age <= 0 {
-		response.Response(c, 400, errmsg.AgeIllegalMsg)
-		return
-	}
 	// 3. 验证码
 	// 3.1 获取验证码缓存
 	correctCode, err := cusRedis.Rdb.Get(param.PhoneOrEmail).Result()
@@ -60,7 +56,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 		return
 	}
 	// 3.3 将验证码缓存设置为过期
-	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, -1)
+	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, 1*time.Millisecond)
 	// 4. 判断手机号/邮箱 和用户名是否已存在
 	// 4.1 判断手机号/邮箱是否已存在
 	user := model.User{Phone: param.PhoneOrEmail, Name: param.Name, Password: param.Password, Age: param.Age}
@@ -75,7 +71,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 			return
 		}
 	} else {
-		_, userExist, err := repository.UserExist(user.Email, 2)
+		_, userExist, err := repository.UserExist(user.Email, phoneOrEmail)
 		if err != nil {
 			response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
 			return
@@ -102,8 +98,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 		response.Response(c, 500, errmsg.RegisterFailedMsg, "code", errmsg.EncryptedPwdFailed)
 		return
 	}
-	param.Password = string(encryptedPwd)
-	fmt.Printf("register param.Password:%v\n", param.Password)
+	user.Password = string(encryptedPwd)
 	// 6. 创建用户
 	err = repository.CreateAUser(&user)
 	if err != nil {

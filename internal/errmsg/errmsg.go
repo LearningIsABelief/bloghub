@@ -34,6 +34,7 @@ const (
 	LoginFailed = iota + 11001
 	LoginSuccess
 	PwdWrong
+	MySQLUpdateFailed
 )
 const (
 	BindFailedMsg             = "参数绑定失败"
@@ -65,7 +66,8 @@ const (
 	CreateImgCodeFailedMsg    = "生成图片验证码失败"
 	NameAlreadyExistsMsg      = "用户名已存在"
 
-	LoginFailedMsg  = "登录失败"
-	LoginSuccessMsg = "登录成功"
-	PwdWrongMsg     = "密码错误"
+	LoginFailedMsg       = "登录失败"
+	LoginSuccessMsg      = "登录成功"
+	PwdWrongMsg          = "密码错误"
+	MySQLUpdateFailedMsg = "数据库更新失败"
 )

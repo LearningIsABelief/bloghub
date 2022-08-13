@@ -38,7 +38,6 @@ func _main(args []*string, phone, code string) (_err error) {
 	if _err != nil {
 		return _err
 	}
-
 	sendSmsRequest := &dysmsapi20170525.SendSmsRequest{
 		SignName:      tea.String("阿里云短信测试"),
 		TemplateCode:  tea.String("SMS_154950909"),

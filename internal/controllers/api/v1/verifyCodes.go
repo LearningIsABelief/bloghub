@@ -34,10 +34,6 @@ func sendVerifyCodes(c *gin.Context, phoneOrEmailOrImg int) {
 		response.Response(c, 400, errmsg.BindFailedMsg)
 		return
 	}
-	if len(param.PhoneOrEmail) == 0 {
-		response.Response(c, 400, errmsg.PhoneIsEmptyMsg)
-		return
-	}
 	code := pkg.GenValidateCode(6)
 
 	if false {

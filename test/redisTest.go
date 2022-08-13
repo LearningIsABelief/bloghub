@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func main() {
@@ -30,18 +29,24 @@ func main() {
 	if redisInit := cusRedis.RedisInit(); !redisInit {
 		return
 	}
-	err = cusRedis.Rdb.Set("15090386881", "123456", 5*time.Minute).Err()
+	//err = cusRedis.Rdb.Set("15090386881", "123456", 5*time.Minute).Err()
+	//if err != nil {
+	//	fmt.Println(err)
+	//} else {
+	//	time.Sleep(2 * time.Second)
+	//	result, err := cusRedis.Rdb.Get("15090386881").Result()
+	//	if err != nil {
+	//		fmt.Println("获取失败")
+	//		fmt.Println(err)
+	//		return
+	//	} else {
+	//		fmt.Println(result)
+	//	}
+	//}
+	result, err := cusRedis.Rdb.Get("18104077689").Result()
 	if err != nil {
-		fmt.Println(err)
-	} else {
-		time.Sleep(2 * time.Second)
-		result, err := cusRedis.Rdb.Get("15090386881").Result()
-		if err != nil {
-			fmt.Println("获取失败")
-			fmt.Println(err)
-			return
-		} else {
-			fmt.Println(result)
-		}
+		return
 	}
+	fmt.Println(result)
+
 }

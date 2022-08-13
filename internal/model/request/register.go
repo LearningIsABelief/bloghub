@@ -5,5 +5,5 @@ type Register struct {
 	Name         string `json:"name"`
 	Password     string `json:"password"`
 	Code         string `json:"code"`
-	Age          int    `json:"age"`
+	Age          int    `json:"age" binding:"gt=0"`
 }
