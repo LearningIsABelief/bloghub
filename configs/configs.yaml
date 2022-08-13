@@ -1,0 +1,21 @@
+run_mode: debug              # 开发模式, debug, release, test
+addr: 8036
+mysql:
+  host: "zhandongyang.online"
+  port: 8026
+  user: "root"
+  password: "123456"
+  dbname: "gohub"
+  charset: "utf8mb4"
+cusZap:
+  path:
+cusRedis:
+  host: "zhandongyang.online"
+  port: 8027
+  password: "redis123456"
+  DB: 0
+email:
+  from: "2646938551@qq.com"
+  password: "kyyvglevudlydidh"
+imgCode:
+  captcha_type: "string"
