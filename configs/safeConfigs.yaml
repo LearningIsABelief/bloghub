@@ -1,0 +1,29 @@
+run_mode: debug              # 开发模式, debug, release, test
+addr: 8036
+cusPath:
+mysql:
+  host: "xxxxxxxxxx"
+  port: 8026
+  user: "root"
+  password: "123456"
+  dbname: "gohub"
+  charset: "utf8mb4"
+cusZap:
+  path:
+cusRedis:
+  host: "xxxxxxxxxx"
+  port: 8027
+  password: "xxxxxxxxxx"
+  DB: 0
+email:
+  from: "xxxxxxxxxx"
+  password: "xxxxxxxxxx"
+imgCode:
+  captcha_type: "string"
+verifyCode:
+  expireAt: 5
+jwt:
+  secret: "fdasfddndoafnofuanfofjdsfoasdnf"
+  accessExpireAt: 1440
+  refreshExpireAt: 60
+  issuer: "gohub"
