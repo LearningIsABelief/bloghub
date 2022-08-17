@@ -29,7 +29,7 @@ func UsingPhone(c *gin.Context) {
 	correctCode, err := cusRedis.Rdb.Get(param.Phone).Result()
 	if err != nil {
 		if err == redis.Nil {
-			response.Response(c, 401, errmsg.PhoneCodeExpiredMsg)
+			response.Response(c, 401, errmsg.CodeExpiredMsg)
 			return
 		}
 		cusZap.Error(errmsg.GetCodeRedisFailedMsg, zap.String("err", err.Error()))
@@ -41,19 +41,25 @@ func UsingPhone(c *gin.Context) {
 		response.Response(c, 403, errmsg.PhoneCodeWrongMsg)
 		return
 	}
-	// 2.3 将验证码缓存设置为过期
-	cusRedis.Rdb.Set(param.Phone, correctCode, 1*time.Millisecond)
 	// 3. 判断用户是否存在
-	_, userExist, err := repository.UserExist(param.Phone, 1)
+	user, userExist, err := repository.UserExist(param.Phone, 1)
 	if err != nil {
 		response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
 		return
 	}
 	if userExist {
-		response.Response(c, 200, errmsg.LoginSuccessMsg, "status", "success")
+		c.Set("user", user)
+		accessTokenString, refreshTokenString, errCode := pkg.Accredit(c)
+		if errCode != nil {
+			response.Response(c, 500, "", "status", "failed", "code", errCode.Error())
+			return
+		}
+		response.Response(c, 200, "登录成功", "status", "success", "accessTokenString", accessTokenString, "refreshTokenString", refreshTokenString)
 	} else {
 		response.Response(c, 200, errmsg.PhoneDoesNotExistsMsg, "status", "failed")
 	}
+	// 4. 将验证码缓存设置为过期
+	cusRedis.Rdb.Set(param.Phone, correctCode, 1*time.Millisecond)
 }
 
 func UsingPassword(c *gin.Context) {
@@ -77,7 +83,7 @@ func UsingPassword(c *gin.Context) {
 		user, exist, err = repository.UserExist(param.PhoneOrEmailOrName, start)
 		userExist = userExist || exist
 		if err != nil {
-			response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
+			response.Response(c, 500, "", "status", "", "code", errmsg.MySQLQueryFailed)
 			return
 		}
 	}
@@ -89,66 +95,52 @@ func UsingPassword(c *gin.Context) {
 			response.Response(c, 200, errmsg.PwdWrongMsg, "status", "failed")
 			return
 		}
-		response.Response(c, 200, errmsg.LoginSuccessMsg, "status", "success")
+		c.Set("user", user)
+		accessTokenString, refreshTokenString, errCode := pkg.Accredit(c)
+		if errCode != nil {
+			response.Response(c, 500, "", "status", "failed", "code", errCode.Error())
+			return
+		}
+		response.Response(c, 200, "登录成功", "status", "success", "accessTokenString", accessTokenString, "refreshTokenString", refreshTokenString)
 	} else {
 		response.Response(c, 200, errmsg.PhoneDoesNotExistsMsg, "status", "failed")
 	}
 }
 
-func PwdResetUsingPhone(c *gin.Context) {
-	pwdReset(c, 1)
-}
-
-func PwdResetUsingEmail(c *gin.Context) {
-	pwdReset(c, 2)
-}
-
-func pwdReset(c *gin.Context, phoneOrEmail int) {
-	// 1. 参数绑定
-	var param request.PwdReset
-	if err := c.ShouldBindJSON(&param); err != nil {
-		response.Response(c, 400, errmsg.BindFailedMsg)
-		return
-	}
-	// 2. 判断用户是否存在
-	var user *model.User
-	user, userExist, err := repository.UserExist(param.PhoneOrEmail, phoneOrEmail)
+func RefreshToken(c *gin.Context) {
+	// 1. 从请求头获取tokenString
+	refreshTokenString, err := pkg.GetAuthorization(c)
 	if err != nil {
-		response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
+		response.Response(c, 401, err.Error())
 		return
 	}
-	// 3. 验证码
-	// 3.1 获取验证码缓存
-	correctCode, err := cusRedis.Rdb.Get(param.PhoneOrEmail).Result()
+	// 2. 获取claims
+	claims, err := pkg.ParseToken(refreshTokenString)
+	if err != nil {
+		return
+	}
+	// 3. 获取refreshTokenString缓存
+	RedisRefreshTokenString, err := cusRedis.Rdb.Get(fmt.Sprintf("refreshTokenString:%v", claims.UserID)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			response.Response(c, 401, errmsg.PhoneCodeExpiredMsg)
+			response.Response(c, 401, "refresh token过期")
 			return
 		}
-		cusZap.Error(errmsg.GetCodeRedisFailedMsg, zap.String("err", err.Error()))
-		response.Response(c, 500, errmsg.LoginFailedMsg, "code", errmsg.GetCodeRedisFailed)
+		response.Response(c, 500, "", "code", errmsg.GetRedisRefreshTokenFailed)
 		return
 	}
-	// 3.2 验证验证码
-	if correctCode != param.Code {
-		response.Response(c, 403, errmsg.PhoneCodeWrongMsg)
+	if RedisRefreshTokenString != refreshTokenString {
+		response.Response(c, 401, "refresh token过期")
 		return
 	}
-	// 3.3 将验证码缓存设置为过期
-	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, 1*time.Millisecond)
-	// 4. 用户密码加密
-	bcryptedPwd, err := bcrypt.GenerateFromPassword([]byte(param.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
+	// 用户
+	user := &model.User{ID: claims.UserID, Name: claims.UserName}
+	// 4. 根据用户信息生成accessTokenString和新的refreshTokenString
+	c.Set("user", user)
+	accessTokenString, refreshTokenString, errCode := pkg.Accredit(c)
+	if errCode != nil {
+		response.Response(c, 500, "", "code", errCode.Error())
 		return
 	}
-	//
-	user.Password = string(bcryptedPwd)
-	if userExist {
-		err := repository.UpdateAUser(user)
-		if err != nil {
-			response.Response(c, 500, "", "code", errmsg.MySQLUpdateFailed)
-			return
-		}
-	}
-	response.Response(c, 200, "更新成功", "status", "success")
+	response.Response(c, 200, "", "accessTokenString", accessTokenString, "refreshTokenString", refreshTokenString)
 }

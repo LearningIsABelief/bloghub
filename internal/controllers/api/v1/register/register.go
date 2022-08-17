@@ -43,7 +43,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 	correctCode, err := cusRedis.Rdb.Get(param.PhoneOrEmail).Result()
 	if err != nil {
 		if err == redis.Nil {
-			response.Response(c, 401, errmsg.PhoneCodeExpiredMsg)
+			response.Response(c, 401, errmsg.CodeExpiredMsg)
 			return
 		}
 		cusZap.Error(errmsg.GetCodeRedisFailedMsg, zap.String("err", err.Error()))
@@ -59,8 +59,9 @@ func register(c *gin.Context, phoneOrEmail int) {
 	cusRedis.Rdb.Set(param.PhoneOrEmail, correctCode, 1*time.Millisecond)
 	// 4. 判断手机号/邮箱 和用户名是否已存在
 	// 4.1 判断手机号/邮箱是否已存在
-	user := model.User{Phone: param.PhoneOrEmail, Name: param.Name, Password: param.Password, Age: param.Age}
+	var user *model.User
 	if phoneOrEmail == 1 {
+		user = &model.User{Phone: param.PhoneOrEmail, Name: param.Name, Password: param.Password, Age: param.Age}
 		_, userExist, err := repository.UserExist(user.Phone, phoneOrEmail)
 		if err != nil {
 			response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
@@ -71,6 +72,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 			return
 		}
 	} else {
+		user = &model.User{Email: param.PhoneOrEmail, Name: param.Name, Password: param.Password, Age: param.Age}
 		_, userExist, err := repository.UserExist(user.Email, phoneOrEmail)
 		if err != nil {
 			response.Response(c, 500, "", "code", errmsg.MySQLQueryFailed)
@@ -100,7 +102,7 @@ func register(c *gin.Context, phoneOrEmail int) {
 	}
 	user.Password = string(encryptedPwd)
 	// 6. 创建用户
-	err = repository.CreateAUser(&user)
+	err = repository.CreateAUser(user)
 	if err != nil {
 		response.Response(c, 500, errmsg.RegisterFailedMsg, "code", errmsg.MySQLCreateAUserFailed)
 		return

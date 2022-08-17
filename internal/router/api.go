@@ -2,9 +2,11 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	V1 "gohub/internal/controllers/api/v1"
-	login2 "gohub/internal/controllers/api/v1/login"
-	register2 "gohub/internal/controllers/api/v1/register"
+	loginHandler "gohub/internal/controllers/api/v1/login"
+	registerHandler "gohub/internal/controllers/api/v1/register"
+	userHandler "gohub/internal/controllers/api/v1/user"
+	verifyCodesHandler "gohub/internal/controllers/api/v1/verifyCodes"
+	"gohub/internal/middleware"
 )
 
 func RegisterRouters(e *gin.Engine) {
@@ -15,36 +17,40 @@ func RegisterRouters(e *gin.Engine) {
 	// 注册
 	register := auth.Group("/register")
 	{
-		register.POST("/using-phone", register2.UsingPhone)
-		register.POST("/using-email", register2.UsingEmail)
-		register.POST("/phone/exist", register2.PhoneExist)
-		register.POST("/email/exist", register2.EmailExist)
-		register.POST("/verify-codes/phone", V1.Phone)
-		register.POST("/verify-codes/email", V1.Email)
-		register.POST("/verify-codes/img", V1.Img)
+		register.POST("/using-phone", registerHandler.UsingPhone)
+		register.POST("/using-email", registerHandler.UsingEmail)
+		register.POST("/phone/exist", registerHandler.PhoneExist)
+		register.POST("/email/exist", registerHandler.EmailExist)
 	}
 	// 登录
 	login := auth.Group("login")
 	{
-		login.POST("/using-phone", login2.UsingPhone)
-		login.POST("/using-password", login2.UsingPassword)
-		login.POST("/password-reset/using-email", login2.PwdResetUsingEmail)
-		login.POST("/password-reset/using-phone", login2.PwdResetUsingPhone)
+		login.GET("/refresh-token", loginHandler.RefreshToken)
+		login.POST("/using-phone", loginHandler.UsingPhone)
+		login.POST("/using-password", loginHandler.UsingPassword)
+	}
+	// 获取验证码
+	getVerifyCode := auth.Group("/verify-codes")
+	{
+		getVerifyCode.POST("/phone", verifyCodesHandler.Phone)
+		getVerifyCode.POST("/email", verifyCodesHandler.Email)
+		getVerifyCode.POST("/img", verifyCodesHandler.Img)
 	}
 	// 用户管理
-	user := v1.Group("/user")
+	needAuth := v1.Group("", middleware.Authentication())
+	user := needAuth.Group("/user")
 	{
-		user.GET("/")
-		user.GET("/users")
-		user.PUT("/user")
-		user.PUT("/user/phone")
-		user.PUT("/user/email")
-		user.PUT("/user/password")
+		user.GET("/", userHandler.User)
+		user.GET("/all", userHandler.All)
+		user.PUT("/phone", userHandler.Phone)
+		user.PUT("/email", userHandler.Email)
+		v1.PUT("/user/password/using-email", userHandler.PwdResetUsingEmail)
+		v1.PUT("/user/password/using-phone", userHandler.PwdResetUsingPhone)
 		// 修改头像
-		user.PUT("/user/avatar")
+		user.PUT("/avatar", userHandler.UploadImg)
 	}
 	// 文章管理
-	categories := v1.Group("/categories")
+	categories := needAuth.Group("/categories")
 	{
 		// 分类列表
 		categories.GET("/")
@@ -53,7 +59,7 @@ func RegisterRouters(e *gin.Engine) {
 		categories.DELETE("/:id")
 	}
 	// 话题管理
-	topics := v1.Group("/topics")
+	topics := needAuth.Group("/topics")
 	{
 		topics.GET("/")
 		topics.POST("/")
@@ -61,5 +67,5 @@ func RegisterRouters(e *gin.Engine) {
 		topics.PUT("/:id")
 		topics.GET("/:id")
 	}
-	v1.GET("/links")
+	needAuth.GET("/links")
 }

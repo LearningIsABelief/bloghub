@@ -26,5 +26,6 @@ func ConfigsInit(configName, configType, configPath string) bool {
 	viper.WatchConfig()
 	// cusZap.Info("configRead init success...", zap.String("status", "success"))
 	RunMode = viper.GetString("run_mode")
+	viper.Set("cusPath", configPath)
 	return true
 }

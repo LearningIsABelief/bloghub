@@ -27,7 +27,7 @@ func UserExist(queryFieldVal string, phoneOrEmailOrName int) (user *model.User, 
 		if err == gorm.ErrRecordNotFound {
 			return nil, false, nil
 		}
-		return
+		return nil, false, err
 	}
 	return user, true, nil
 }

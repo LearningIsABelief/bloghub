@@ -12,15 +12,15 @@ import (
 )
 
 func main() {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	curPath, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		return
 	}
-	dir = strings.Replace(dir, "\\", "/", -1)
-	if configsInit := configs.ConfigsInit("configs", "yaml", dir+"/../configs/"); !configsInit {
+	curPath = strings.Replace(curPath, "\\", "/", -1)
+	if configsInit := configs.ConfigsInit("configs", "yaml", curPath+"/../configs/"); !configsInit {
 		return
 	}
-	if zapInit := initZap.ZapInit(dir); !zapInit {
+	if zapInit := initZap.ZapInit(curPath); !zapInit {
 		return
 	}
 	if mySQLInit := mysql.MySQLInit(); !mySQLInit {

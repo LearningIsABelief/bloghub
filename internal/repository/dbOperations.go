@@ -31,14 +31,14 @@ func dbOperations(function func() error, funcName string) (err error) {
 }
 
 func sqlPerformance(funcName string, count, slowSQL, err bool) {
-	redisHSet := func(filed string) {
-		exist, _ := cusRedis.Rdb.HExists(funcName, filed).Result()
+	redisHSet := func(field string) {
+		exist, _ := cusRedis.Rdb.HExists(funcName, field).Result()
 		if exist {
-			num, _ := cusRedis.Rdb.HGet(funcName, filed).Int()
+			num, _ := cusRedis.Rdb.HGet(funcName, field).Int()
 			num++
-			cusRedis.Rdb.HSet(funcName, filed, num)
+			cusRedis.Rdb.HSet(funcName, field, num)
 		} else {
-			cusRedis.Rdb.HSet(funcName, filed, 1)
+			cusRedis.Rdb.HSet(funcName, field, 1)
 		}
 	}
 	if count {

@@ -1,8 +1,8 @@
-package v1
+package verifyCodes
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"gohub/init/cusRedis"
 	"gohub/init/cusZap"
@@ -15,22 +15,22 @@ import (
 
 // Phone 发送短信验证码
 func Phone(c *gin.Context) {
-	sendVerifyCodes(c, 1)
+	send(c, 1)
 }
 
 func Email(c *gin.Context) {
-	sendVerifyCodes(c, 2)
+	send(c, 2)
 }
 
 func Img(c *gin.Context) {
-	sendVerifyCodes(c, 3)
+	send(c, 3)
 }
 
-func sendVerifyCodes(c *gin.Context, phoneOrEmailOrImg int) {
-	var param request.Register
+func send(c *gin.Context, phoneOrEmailOrImg int) {
+	var param request.VerifyCodes
 	var base64Img string
 	var err error
-	if err = c.ShouldBindJSON(&param); err != nil {
+	if phoneOrEmailOrImg != 3 && c.ShouldBindJSON(&param) != nil {
 		response.Response(c, 400, errmsg.BindFailedMsg)
 		return
 	}
@@ -62,11 +62,10 @@ func sendVerifyCodes(c *gin.Context, phoneOrEmailOrImg int) {
 				return
 			}
 			code = pkg.GetCodeAnswer(codeId)
-			fmt.Printf("code:%v\n", code)
 		}
 	}
 	// 将验证码保存到redis中，过期时间为1分钟
-	err = cusRedis.Rdb.Set(param.PhoneOrEmail, code, 1*time.Minute).Err()
+	err = cusRedis.Rdb.Set(param.PhoneOrEmail, code, time.Duration(viper.GetInt("verifyCode.expireAt"))*time.Minute).Err()
 	if err != nil {
 		cusZap.Error(errmsg.SetCodeRedisFailedMsg, zap.String("err", err.Error()))
 		response.Response(c, 500, "", "code", errmsg.SetCodeRedisFailed)

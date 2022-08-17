@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-gomail/gomail v0.0.0-20160411212932-81ebce5c23df
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/mojocn/base64Captcha v1.3.5
 	github.com/spf13/viper v1.12.0
 	go.uber.org/zap v1.19.1
